@@ -1,0 +1,120 @@
+apiVersion: v1
+kind: Template
+metadata:
+  creationTimestamp: null
+  name: shoppingcart
+labels:
+  template: shoppingcart
+objects:
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: shoppingcart
+      application: shoppingcart
+    name: shoppingcart
+  spec:
+    ports:
+    - name: 8080-tcp
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    - name: 8443-tcp
+      port: 8443
+      protocol: TCP
+      targetPort: 8443
+    - name: 8778-tcp
+      port: 8778
+      protocol: TCP
+      targetPort: 8778
+    selector:
+      app: shoppingcart
+      deploymentconfig: shoppingcart
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    labels:
+      app: shoppingcart
+      application: shoppingcart
+    name: shoppingcart
+  spec:
+    replicas: 1
+    selector:
+      app: shoppingcart
+      deploymentconfig: shoppingcart
+    strategy:
+      resources: {}
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          app: shoppingcart
+          application: shoppingcart
+          deploymentconfig: shoppingcart
+      spec:
+        containers:
+        - image: shoppingcart
+          imagePullPolicy: Always
+          name: shoppingcart
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /api/cart/d.0000000
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 4
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /api/cart/d.0000000
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          env:
+          - name: AB_JOLOKIA_OFF
+            value: "true"
+          ports:
+          - containerPort: 8778
+            protocol: TCP
+          - containerPort: 8080
+            protocol: TCP
+          - containerPort: 8443
+            protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+    triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - shoppingcart
+        from:
+          kind: ImageStreamTag
+          name: shoppingcart:latest
+      type: ImageChange
+  status: {}
+
+- apiVersion: v1
+  kind: Route
+  metadata:
+    labels:
+      app: shoppingcart
+    name: shoppingcart
+  spec:
+    port:
+      targetPort: 8080-tcp
+    to:
+      kind: Service
+      name: shoppingcart
+      weight: 100
+    wildcardPolicy: None
